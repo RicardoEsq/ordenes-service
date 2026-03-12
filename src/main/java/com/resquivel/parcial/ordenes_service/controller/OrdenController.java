@@ -1,20 +1,12 @@
 package com.resquivel.parcial.ordenes_service.controller;
 
 import java.util.List;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
-
+import org.springframework.web.bind.annotation.*;
 import com.resquivel.parcial.ordenes_service.model.Orden;
 import com.resquivel.parcial.ordenes_service.repository.OrdenRepository;
-// Asegúrate de importar tu CloudWatchService si está en otra carpeta
-// import com.resquivel.parcial.ordenes_service.service.CloudWatchService; 
 
 @RestController
 @RequestMapping("/ordenes")
@@ -25,26 +17,46 @@ public class OrdenController {
     @Autowired
     private OrdenRepository ordenRepository;
 
-    // 1. Aquí inyectamos el nuevo conector directo de AWS
     @Autowired
     private CloudWatchService cloudWatchService;
 
-    @GetMapping
-    public List<Orden> obtenerOrdenes() {
-        logger.info("Solicitud recibida: Consultando todas las órdenes");
-        return ordenRepository.findAll();
-    }
-
+    // POST /ordenes - Crear una orden
     @PostMapping
     public Orden crearOrden(@RequestBody Orden orden) {
-        orden.setEstado("CREADA"); // Toda orden nueva entra como "CREADA" por defecto
-        
-        // El log local de consola (se queda por si acaso)
-        logger.info("Solicitud recibida: Creando orden para el producto ID: {}", orden.getProductoId());
-        
-        // 2. Aquí disparamos el mensaje directamente hacia LocalStack
-        cloudWatchService.enviarLog("¡Éxito! Procesando nueva orden para el producto: " + orden.getProductoId());
-        
+        logger.info("Creando nueva orden para el producto: {}", orden.getProductoId());
+        if (orden.getEstado() == null) {
+            orden.setEstado("CREADA");
+        }
+        cloudWatchService.enviarLog("Nueva orden creada: Producto " + orden.getProductoId());
         return ordenRepository.save(orden);
+    }
+
+    // GET /ordenes/{id} - Detalle de una orden
+    @GetMapping("/{id}")
+    public org.springframework.http.ResponseEntity<Orden> obtenerOrden(@PathVariable("id") String id) {
+        logger.info("Consultando detalle de orden ID: {}", id);
+        return ordenRepository.findById(id)
+                .map(orden -> org.springframework.http.ResponseEntity.ok(orden))
+                .orElse(org.springframework.http.ResponseEntity.notFound().build());
+    }
+
+    // GET /ordenes/usuario/{usuarioId} - Órdenes de un usuario específico
+    @GetMapping("/usuario/{usuarioId}")
+    public List<Orden> obtenerOrdenesPorUsuario(@PathVariable("usuarioId") String usuarioId) {
+        logger.info("Consultando órdenes del usuario ID: {}", usuarioId);
+        return ordenRepository.findByUsuarioId(usuarioId);
+    }
+
+    // PUT /ordenes/{id}/status - Cambiar estado de la orden
+    @PutMapping("/{id}/status")
+    public org.springframework.http.ResponseEntity<Orden> actualizarEstado(@PathVariable("id") String id, @RequestBody String nuevoEstado) {
+        logger.info("Actualizando estado de la orden {} a {}", id, nuevoEstado);
+        return ordenRepository.findById(id).map(orden -> {
+            orden.setEstado(nuevoEstado);
+            try {
+                cloudWatchService.enviarLog("Estado de orden actualizado a: " + nuevoEstado);
+            } catch (Exception e) {}
+            return org.springframework.http.ResponseEntity.ok(ordenRepository.save(orden));
+        }).orElse(org.springframework.http.ResponseEntity.notFound().build());
     }
 }

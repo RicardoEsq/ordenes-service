@@ -8,21 +8,19 @@ public class Orden {
 
     @Id
     private String id;
-    private String productoId; // Aquí guardaremos el ID larguísimo que te dio Mongo
+    private String usuarioId;
+    private String productoId;
     private Integer cantidad;
-    private String estado; // Ej: "CREADA", "PAGADA"
+    private String estado; // Ej: "CREADA", "PROCESANDO", "ENTREGADO"
 
     public Orden() {}
-
-    public Orden(String productoId, Integer cantidad, String estado) {
-        this.productoId = productoId;
-        this.cantidad = cantidad;
-        this.estado = estado;
-    }
 
     // Getters y Setters
     public String getId() { return id; }
     public void setId(String id) { this.id = id; }
+
+    public String getUsuarioId() { return usuarioId; }
+    public void setUsuarioId(String usuarioId) { this.usuarioId = usuarioId; }
 
     public String getProductoId() { return productoId; }
     public void setProductoId(String productoId) { this.productoId = productoId; }
